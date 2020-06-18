@@ -3,6 +3,9 @@
 import json
 import requests
 import urllib3
+import calendar
+import time
+import os.path
 
 from decimal import Decimal
 from bs4 import BeautifulSoup
@@ -18,7 +21,7 @@ def decimal_default(obj):
 
 
 def format_decimal(number):
-    return str(number).replace(".", "").replace(",", ".")
+    return str(number).replace('.', '').replace(',', '.')
 
 
 def vision():
@@ -30,109 +33,40 @@ def vision():
 
         efectivo = soup.select('#efectivo')[0]
         compra = efectivo.select('table > tr > td:nth-of-type(2) > p:nth-of-type(1)')[0].get_text().replace('.', '')
-        venta = efectivo.select('table > tr > td:nth-of-type(3) > p:nth-of-type(1)')[0].get_text().replace('.', '')
+        venta  = efectivo.select('table > tr > td:nth-of-type(3) > p:nth-of-type(1)')[0].get_text().replace('.', '')
+
+        online = soup.select('#online')[0]
+        comprao = online.select('table > tr > td:nth-of-type(2) > p:nth-of-type(1)')[0].get_text().replace('.', '')
+        ventao  = online.select('table > tr > td:nth-of-type(3) > p:nth-of-type(1)')[0].get_text().replace('.', '')
     except requests.ConnectionError:
-        compra, venta = 0, 0
+        compra, venta, comprao, ventao = 0, 0, 0, 0
     except:
-        compra, venta = 0, 0
+        compra, venta, comprao, ventao = 0, 0, 0, 0
 
-    return Decimal(compra), Decimal(venta)
-
-
-def chaco():
-    try:
-        soup = json.loads(
-            requests.get(
-                "http://www.cambioschaco.com.py/api/branch_office/1/exchange",
-                timeout=10,
-            ).text
-        )
-        compra = soup["items"][0]["purchasePrice"]
-        venta = soup["items"][0]["salePrice"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def maxi():
-    today = datetime.today().strftime("%d%m%Y")
-    url = "https://www.maxicambios.com.py/"
-    try:
-        soup = BeautifulSoup(
-            requests.get(
-                url,
-                timeout=10,
-                headers={"user-agent": "Mozilla/5.0"},
-                verify=False,
-            ).text,
-            "html.parser",
-        )
-
-        tr_dolar = soup.find(class_="fixed-plugin").find("table").find("tbody").find("tr")
-
-        compra = tr_dolar.find_all('td')[1].text
-        venta  = tr_dolar.find_all('td')[2].text
-
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def alberdi():
-    try:
-        url = "http://cambiosalberdi.com/ws/getCotizaciones.json"
-        soup = requests.get(url, timeout=10).json()
-        compra = soup["asuncion"][0]["compra"].replace(".", "")
-        venta = soup["asuncion"][0]["venta"].replace(".", "")
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-    try:
-        return Decimal(compra), Decimal(venta)
-    except:
-        return 0, 0
+    return Decimal(compra), Decimal(venta), Decimal(comprao), Decimal(ventao)
 
 
 def bcp():
     try:
         soup = BeautifulSoup(
-            requests.get(
-                "https://www.bcp.gov.py/webapps/web/cotizacion/monedas",
-                timeout=10,
-                headers={"user-agent": "Mozilla/5.0"},
-                verify=False,
-            ).text,
-            "html.parser",
-        )
-        ref = soup.select("#cotizacion-interbancaria > tbody > tr > td:nth-of-type(4)")[
-            0
-        ].get_text()
-        ref = ref.replace(".", "").replace(",", ".")
+            requests.get('https://www.bcp.gov.py/webapps/web/cotizacion/monedas', timeout=10,
+                         headers={'user-agent': 'Mozilla/5.0'}, verify=False).text, "html.parser")
+        ref = soup.select(
+            '#cotizacion-interbancaria > tbody > tr > td:nth-of-type(4)')[0].get_text()
+        ref = ref.replace('.', '').replace(',', '.')
         soup = BeautifulSoup(
             requests.get(
-                "https://www.bcp.gov.py/webapps/web/cotizacion/referencial-fluctuante",
-                timeout=10,
-                headers={"user-agent": "Mozilla/5.0"},
-                verify=False,
-            ).text,
-            "html.parser",
-        )
+                'https://www.bcp.gov.py/webapps/web/cotizacion/referencial-fluctuante', timeout=10,
+                headers={'user-agent': 'Mozilla/5.0'}, verify=False).text, "html.parser")
         compra_array = soup.find(
-            class_="table table-striped table-bordered table-condensed"
-        ).select("tr > td:nth-of-type(4)")
+            class_="table table-striped table-bordered table-condensed").select('tr > td:nth-of-type(4)')
         venta_array = soup.find(
-            class_="table table-striped table-bordered table-condensed"
-        ).select("tr > td:nth-of-type(5)")
+            class_="table table-striped table-bordered table-condensed").select('tr > td:nth-of-type(5)')
         posicion = len(compra_array) - 1
-        compra = compra_array[posicion].get_text().replace(".", "").replace(",", ".")
-        venta = venta_array[posicion].get_text().replace(".", "").replace(",", ".")
+        compra = compra_array[posicion].get_text(
+        ).replace('.', '').replace(',', '.')
+        venta = venta_array[posicion].get_text().replace(
+            '.', '').replace(',', '.')
     except requests.ConnectionError:
         compra, venta, ref = 0, 0, 0
     except:
@@ -144,15 +78,11 @@ def bcp():
 def setgov():
     try:
         soup = BeautifulSoup(
-            requests.get("http://www.set.gov.py/portal/PARAGUAY-SET", timeout=10).text,
-            "html.parser",
-        )
-        compra = (
-            soup.select("td.UICotizacion")[0].text.replace("G. ", "").replace(".", "")
-        )
-        venta = (
-            soup.select("td.UICotizacion")[1].text.replace("G. ", "").replace(".", "")
-        )
+            requests.get('http://www.set.gov.py/portal/PARAGUAY-SET', timeout=10).text, "html.parser")
+        compra = soup.find_all(class_="UITipoGrafiaCotizacion")[0].select('div')[
+            1].contents[4].replace('.', '').replace(',', '.')
+        venta = soup.find_all(class_="UITipoGrafiaCotizacion")[0].select('div')[
+            2].contents[4].replace('.', '').replace(',', '.')
     except requests.ConnectionError:
         compra, venta = 0, 0
     except:
@@ -161,194 +91,56 @@ def setgov():
     return Decimal(compra), Decimal(venta)
 
 
-def interfisa():
-    try:
-        jsonResult = requests.get(
-            "https://seguro.interfisa.com.py/rest/cotizaciones", timeout=10
-        ).json()
-        cotizaciones = jsonResult["operacionResponse"]["cotizaciones"]["monedaCot"]
-        for coti in cotizaciones:
-            for k, v in coti.items():
-                if v == "DOLARES AMERICANOS":  # estamos en el dict de Dolares
-                    compra = coti["compra"]
-                    venta = coti["venta"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def amambay():
-    try:
-        soup = requests.get(
-            "http://www.bancoamambay.com.py/ebanking_ext/api/data/currency_exchange",
-            timeout=10,
-        ).json()
-        compra = soup["currencyExchanges"][0]["purchasePrice"]
-        venta = soup["currencyExchanges"][0]["salePrice"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def eurocambio():
-    try:
-        url = "https://eurocambios.com.py/v2/sgi/utilsDto.php"
-        data = {"param": "getCotizacionesbySucursal", "sucursal": "1"}
-        result = requests.post(url, data, timeout=10).json()
-        compra = result[0]["compra"]
-        venta = result[0]["venta"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def myd():
-    try:
-        soup = BeautifulSoup(
-            requests.get("https://www.mydcambios.com.py/", timeout=10).text,
-            "html.parser",
-        )
-        compra = soup.select(
-            "div.cambios-banner-text.scrollbox > ul:nth-of-type(2) > li:nth-of-type(2) "
-        )[0].text
-        venta = soup.select(
-            "div.cambios-banner-text.scrollbox > ul:nth-of-type(2) > li:nth-of-type(3) "
-        )[0].text
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-# def familiar():  # Comentado porque el servidor bloquea las peticiones
-#     try:
-#         soup = BeautifulSoup(
-#             requests.get('https://www.familiar.com.py/', timeout=10).text, "html.parser")
-#         compra = soup.select(
-#             'hgroup:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(2)')[0].get_text().replace('.', '')
-#         venta = soup.select(
-#             'hgroup:nth-of-type(1) > div:nth-of-type(3) > p:nth-of-type(2)')[0].get_text().replace('.', '')
-#     except requests.ConnectionError:
-#         compra, venta = 0, 0
-#     except:
-#         compra, venta = 0, 0
-
-#     return Decimal(compra), Decimal(venta)
-
-
-def bbva():
-    try:
-        soup = requests.get(
-            "https://www.bbva.com.py/Yaguarete/public/quotations", timeout=10
-        ).json()
-        compra = soup[0]["cashBuyPrice"]
-        venta = soup[0]["cashSellPrice"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def mundial():
-    try:
-        url = "http://www.mundialcambios.com.py/json.php"
-        data = {"id": "6"}
-        headers = {
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate",
-            "Accept-Language": "es-ES,es;q=0.9",
-            "Connection": "keep-alive",
-            "Content-Length": "4",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36",
-        }
-        result = requests.post(url, data, headers=headers, timeout=10).json()
-        compra = result["data"]["cambios"]["0"]["cot_compra"]
-        venta = result["data"]["cambios"]["0"]["cot_venta"]
-    except requests.ConnectionError:
-        compra, venta = 0, 0
-    except:
-        compra, venta = 0, 0
-
-    return Decimal(compra), Decimal(venta)
-
-
-def create_json():
-    mcompra, mventa = maxi()
-    ccompra, cventa = chaco()
-    acompra, aventa = alberdi()
+def create_data():
     bcpcompra, bcpventa, bcpref = bcp()
     setcompra, setventa = setgov()
-    intcompra, intventa = interfisa()
-    ambcompra, ambventa = amambay()
-    eccompra, ecventa = eurocambio()
-    mydcompra, mydventa = myd()
-    bbvacompra, bbvaventa = bbva()
-    # famicompra, famiventa = familiar()
-    wcompra, wventa = mundial()
-    visioncompra, visionventa = vision()
+    visioncompra, visionventa, visioncomprao, visionventao = vision()
+    current_epoch = calendar.timegm(time.localtime())
+    date_str = time.strftime("%Y-%m-%d %H:%M:%S %Z", time.localtime())
 
-    respjson = {
-        "dolarpy": {
-            "cambiosalberdi": {"compra": acompra, "venta": aventa},
-            "cambioschaco": {"compra": ccompra, "venta": cventa},
-            "maxicambios": {"compra": mcompra, "venta": mventa},
-            "bcp": {
-                "compra": bcpcompra,
-                "venta": bcpventa,
-                "referencial_diario": bcpref,
+    new_data = {
+        '{}'.format(current_epoch): {
+            'bcp': {
+                'compra': bcpcompra,
+                'venta': bcpventa,
+                'referencial_diario': bcpref
             },
-            "set": {"compra": setcompra, "venta": setventa},
-            "interfisa": {"compra": intcompra, "venta": intventa},
-            "amambay": {"compra": ambcompra, "venta": ambventa},
-            "mydcambios": {"compra": mydcompra, "venta": mydventa},
-            "eurocambios": {"compra": eccompra, "venta": ecventa},
-            # 'familiar': {
-            #     'compra': famicompra,
-            #     'venta': famiventa
-            # }
-            "bbva": {"compra": bbvacompra, "venta": bbvaventa},
-            "mundialcambios": {"compra": wcompra, "venta": wventa},
+            'set': {
+                'compra': setcompra,
+                'venta': setventa
+            },
             'vision': {
                 'compra': visioncompra,
                 'venta': visionventa,
-            }
+                'compra_online': visioncomprao,
+                'venta_online': visionventao
+            },
+	    'date': date_str
         },
-        "updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    return json.dumps(
-        respjson,
-        indent=4,
-        sort_keys=True,
-        separators=(",", ": "),
-        default=decimal_default,
-    )
+    return new_data
 
 
-def get_output():
-    with open("dolar.json", "r") as f:
+def get_current_data():
+    with open('dolar.json', 'r') as f:
         response = f.read()
-    return response
+    return json.loads(response)
 
 
-def write_output():
-    response = create_json()
-    with open("dolar.json", "w") as f:
-        f.write(response)
+def write_output(json):
+    with open('dolar.json', 'w') as f:
+        f.write(json)
 
+if __name__ == "__main__":
+    json_data = {}
 
-write_output()
+    if os.path.exists('dolar.json'):
+        json_data = get_current_data()
+
+    json_data.update(create_data())
+
+    tmp = json.dumps(
+        json_data, indent=4, sort_keys=True, separators=(',', ': '), default=decimal_default)
+
+    write_output(tmp)
