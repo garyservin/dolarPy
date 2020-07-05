@@ -5,6 +5,7 @@ import requests
 import urllib3
 import calendar
 import time
+import os
 import os.path
 
 from decimal import Decimal
@@ -12,7 +13,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 def decimal_default(obj):
     if isinstance(obj, Decimal):
@@ -122,21 +122,23 @@ def create_data():
     return new_data
 
 
+JSON_FILE = 'dolar.json'
+
+
 def get_current_data():
-    with open('dolar.json', 'r') as f:
+    with open(f'{os.environ["HOME"]}/{JSON_FILE}', 'r') as f:
         response = f.read()
-    return json.loads(response)
+    return response
 
 
-def write_output(json):
-    with open('dolar.json', 'w') as f:
-        f.write(json)
+def write_output(data):
+    with open(f'{os.environ["HOME"]}/{JSON_FILE}', 'w') as f:
+        f.write(data)
 
-if __name__ == "__main__":
+def update_data():
     json_data = {}
-
-    if os.path.exists('dolar.json'):
-        json_data = get_current_data()
+    if os.path.exists(f'{os.environ["HOME"]}/{JSON_FILE}'):
+        json_data = json_loads(get_current_data())
 
     json_data.update(create_data())
 
@@ -144,3 +146,7 @@ if __name__ == "__main__":
         json_data, indent=4, sort_keys=True, separators=(',', ': '), default=decimal_default)
 
     write_output(tmp)
+    return json_data
+
+if __name__ == "__main__":
+    update_data()

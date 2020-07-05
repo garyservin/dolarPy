@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn instance to serve dolar
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/dolarPy
+Environment="PATH=/home/ubuntu/dolarPy/env/bin"
+ExecStart=/home/ubuntu/dolarPy/env/bin/gunicorn --workers 3 --bind unix:dolar.sock -m 007 wsgi:app
+
+[Install]
+WantedBy=multi-user.target
