@@ -19,6 +19,7 @@
     var compra_online = [];
     var venta = [];
     var venta_online = [];
+    //$("#plot-end").value("2020-08-04");
 
     var chart = new CanvasJS.Chart("chartContainer", {
         animationEnabled: true,
@@ -143,11 +144,13 @@
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body style="background-color:#EFEFEF;">
-<h1 class="aldrich">💸 DolarPy 💸</h1>
+<h1 class="aldrich">Dolar Vision</h1>
 
 <div id="chartContainer" style="height: 370px; width: 100%;"></div>
 <script src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
 <script src="https://canvasjs.com/assets/script/jquery.canvasjs.min.js"></script>
+From:<input type="date" id="start" name="plot-start" value="2018-07-22" min="2018-01-01" max="2018-12-31">
+Until:<input type="date" id="plot-end" name="plot-end" value="2018-07-22" min="2018-01-01" max="2020-08-04">
 
 <h6>Actualizado: <span id="updated"></span></h6>
 <!--h5 id="algo">Webservice en <a href="/api/1.0/">https://dolar.melizeche.com/api/1.0/</a></h5-->
